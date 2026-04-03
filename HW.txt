@@ -1,0 +1,200 @@
+---P1---
+
+a) CREATE SCHEMA `LibraryManagement` ;
+    USE LibraryManagement;
+
+b) CREATE TABLE authors(
+	author_id INT AUTO_INCREMENT PRIMARY KEY,
+    author_name VARCHAR(255)
+);
+
+c) CREATE TABLE genres(
+	genre_id INT AUTO_INCREMENT PRIMARY KEY,
+    genre_name VARCHAR(255)
+);
+
+d) CREATE TABLE books(
+	book_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255),
+    publication_year DATE,
+    author_id INT,
+    genre_id INT,
+    FOREIGN KEY (author_id) REFERENCES authors(author_id),
+    FOREIGN KEY (genre_id) REFERENCES genres(genre_id)
+);
+
+e) CREATE TABLE users(
+	user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255),
+    email VARCHAR(255)
+);
+
+f) CREATE TABLE borrowed_books(
+	borrow_id INT AUTO_INCREMENT PRIMARY KEY,
+    book_id INT,
+    user_id INT,
+    borrow_date DATE,
+    return_date DATE,
+    FOREIGN KEY (book_id) REFERENCES books(book_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+
+---P 2--- 
+INSERT INTO authors VALUES(1, 'S. King'),(2, 'J. Rowling');
+INSERT INTO genres VALUES(1, 'Detective'),(2, 'Fantasy');
+INSERT INTO books VALUES(1, 'Harry Potter and the Philosopher\'s Stone', '1997', 2, 2),(2, 'The Dead Zone', '1983', 1, 1);
+INSERT INTO users VALUES(1, 'Tony Bony', 'tonybony@gmail.com'),(2, 'Ann Banny', 'bunny.ann@gmail.com');
+INSERT INTO borrowed_books VALUES(1, 1, 2, '2026-03-15', '2026-04-02'),(2, 2, 1, '2026-02-27', '2026-03-31');
+
+---P3---
+USE mydb;
+
+SELECT 
+    od.id AS order_detail_id,
+    o.id AS order_id,
+    o.date AS order_date,
+    c.name AS customer_name,
+    p.name AS product_name,
+    cat.name AS category_name,
+    e.first_name AS employee_first_name,
+    e.last_name AS employee_last_name,
+    s.name AS shipper_name,
+    sup.name AS supplier_name,
+    od.quantity,
+    p.price
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id;
+
+---P4---
+1) 
+SELECT 
+    COUNT(*) AS total_rows
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id;
+
+2)
+SELECT 
+    COUNT(*) AS total_rows
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+LEFT JOIN shippers s ON o.shipper_id = s.id
+LEFT JOIN suppliers sup ON p.supplier_id = sup.id;
+
+SELECT 
+    COUNT(*) AS total_rows
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+RIGHT JOIN shippers s ON o.shipper_id = s.id
+RIGHT JOIN suppliers sup ON p.supplier_id = sup.id;
+
+ВИСНОВОК: У випадку зміни INNER JOIN на LEFT JOIN кількість рядків залишиться незмінною (518), справа в тому, що LEFT JOIN - збереже всі рядки з лівої таблиці, заповнивши відсутні дані з правої таблиці значеннями NULL. 
+Теж саме з RIGHT JOIN якщо ми його використаємо на початку запиту. А якщо вкінці (p4_2-3.png) то я отримва помилку 2013 (Lost connection) по таймауту в 30 сек. Проблема, як я розумію, може бути в тому що shippers i suppliers
+стоїть у самому кінці ланцюжка перетворень, після багатьох INNER JOIN, MySQL намагається з'єднати кожного постачальника з усією комбінацією попередньо зібраних даних і якщо у нас там 518 записів і ми робимо правий джоін
+до цієї великої структури, оптимізатор запитів починає будувати величезну тимчасову таблицю в памʼяті, що призводить до таймауту. АБО логіка фільтрації ламаєтсья, тому що ми спочатку INNER JOIN відсікає все зайве, 
+а потім RIGHT JOIN намагається повернути назад усі записи з правої таблиці, ну і БД 30 секунд намагається зрозуміти, як згрупувати ці дані. Якось так :)
+
+3)
+SELECT 
+    cat.name AS category_name,
+    COUNT(*) AS total_orders_rows,
+    AVG(od.quantity) AS average_quantity
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id
+WHERE e.employee_id > 3 AND e.employee_id <= 10;
+
+4)
+SELECT 
+    cat.name AS category_name,
+    COUNT(*) AS total_orders_rows,
+    AVG(od.quantity) AS average_quantity
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id
+WHERE e.employee_id > 3 AND e.employee_id <= 10
+GROUP BY cat.name;
+
+5)
+SELECT 
+    cat.name AS category_name,
+    COUNT(*) AS total_orders_rows,
+    AVG(od.quantity) AS average_quantity
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id
+WHERE e.employee_id > 3 AND e.employee_id <= 10
+GROUP BY cat.name
+HAVING average_quantity > 21;
+
+6)
+SELECT 
+    cat.name AS category_name,
+    COUNT(*) AS total_orders_rows,
+    AVG(od.quantity) AS average_quantity
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id
+WHERE e.employee_id > 3 AND e.employee_id <= 10
+GROUP BY cat.name
+HAVING average_quantity > 21
+ORDER BY total_orders_rows DESC;
+
+7) 
+SELECT 
+    cat.name AS category_name,
+    COUNT(*) AS total_orders_rows,
+    AVG(od.quantity) AS average_quantity
+FROM order_details od
+INNER JOIN orders o ON od.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN products p ON od.product_id = p.id
+INNER JOIN categories cat ON p.category_id = cat.id
+INNER JOIN employees e ON o.employee_id = e.employee_id
+INNER JOIN shippers s ON o.shipper_id = s.id
+INNER JOIN suppliers sup ON p.supplier_id = sup.id
+WHERE e.employee_id > 3 AND e.employee_id <= 10
+GROUP BY cat.name
+HAVING average_quantity > 21
+ORDER BY total_orders_rows DESC
+LIMIT 4 OFFSET 1;
